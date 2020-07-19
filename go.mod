@@ -1,4 +1,4 @@
-module storage
+module github.com/danmaina/storage
 
 go 1.14
 
