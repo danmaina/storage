@@ -4,11 +4,9 @@ import (
 	"errors"
 	"github.com/danmaina/HttpResponse/v2"
 	"github.com/danmaina/logger"
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/jinzhu/gorm"
-	_ "github.com/jinzhu/gorm"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 	"net/http"
-	"time"
 )
 
 const (
@@ -16,42 +14,28 @@ const (
 )
 
 type Mysql struct {
-	Host               string        `yaml:"host" json:"host"`
-	Port               string        `yaml:"port" json:"port"`
-	Username           string        `yaml:"username" json:"username"`
-	Password           string        `yaml:"password" json:"password"`
-	Database           string        `yaml:"database" json:"database"`
-	TotalConnections   int           `yaml:"totalConnections" json:"totalConnections"`
-	MaxIdleConnections int           `yaml:"maxIdleConnection" json:"maxIdleConnection"`
-	MaxLifetime        time.Duration `yaml:"maxLifetime" json:"maxLifetime"`
+	Host     string `yaml:"host" json:"host"`
+	Port     string `yaml:"port" json:"port"`
+	Username string `yaml:"username" json:"username"`
+	Password string `yaml:"password" json:"password"`
+	Database string `yaml:"database" json:"database"`
 }
 
-func (mysql *Mysql) Connect() (*gorm.DB, error) {
-	con, err := gorm.Open("mysql", mysql.Username+":"+mysql.Password+"@"+"tcp("+mysql.Host+":"+mysql.Port+")"+"/"+mysql.Database+"?parseTime=true")
+func (mysqlObj *Mysql) Connect() (*gorm.DB, error) {
+	dsn := mysqlObj.Username + ":" + mysqlObj.Password + "@tcp(" + mysqlObj.Host + ":" + mysqlObj.Port + ")/" + mysqlObj.Database + "?parseTime=true"
+	con, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 
 	if err != nil {
 		return nil, err
 	}
 
-	if mysql.TotalConnections == 0 {
-		mysql.TotalConnections = 1
-	} else if mysql.MaxIdleConnections == 0 {
-		mysql.MaxIdleConnections = 1
-	} else if mysql.MaxLifetime == 0 || mysql.MaxLifetime < 1 {
-		mysql.MaxLifetime = time.Second * 60
-	}
-
-	con.DB().SetMaxOpenConns(mysql.TotalConnections)
-	con.DB().SetMaxIdleConns(mysql.MaxIdleConnections)
-	con.DB().SetConnMaxLifetime(mysql.MaxLifetime)
-
 	return con, nil
 }
 
-func (mysql *Mysql) ConnectHttp(res http.ResponseWriter) *gorm.DB {
+func (mysqlObj *Mysql) ConnectHttp(res http.ResponseWriter) *gorm.DB {
 	logger.INFO("Retrieving MySQL Connection")
 
-	db, errDb := mysql.Connect()
+	db, errDb := mysqlObj.Connect()
 
 	if errDb != nil {
 		handlers.ReturnResponse(http.StatusInternalServerError, errors.New(InternalProcessingError), nil, res)
